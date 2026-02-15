@@ -51,15 +51,18 @@ class WebTool:
                 
                 # Filtrage par domaine pour éviter les doublons
                 if domain not in seen_domains:
+                    if "linkedin" in href or "twitter" in href or "facebook" in href:
+                        continue # On ignore les résultats LinkedIn, Twitter et Facebook
+
                     results.append({
                         "link": href,
                         "link_name": entry.get('title'),
-                        "snippet": entry.get('content', '') # SearXNG utilise 'content' pour le snippet
+                    #    "snippet": entry.get('content', '') # SearXNG utilise 'content' pour le snippet
                     })
                     seen_domains.add(domain)
                     
                 # On s'arrête à 10 résultats pour ne pas surcharger l'Agent
-                if len(results) >= 10:
+                if len(results) >= 3:
                     break
             
             print(f"Found {len(results)} unique results.")

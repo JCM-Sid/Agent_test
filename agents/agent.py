@@ -1,5 +1,7 @@
 """Agent principal pour les tâches autonomes."""
 import datetime
+import time
+
 
 class Agent:
     """Agent autonome capable d'exécuter diverses tâches."""
@@ -14,12 +16,14 @@ class Agent:
         """Lance la boucle principale de l'agent sur une liste de tâches."""
         print(f"--- Démarrage de {self.name} ---")
         for task in task_list:
-            print(f"\nTraitement de : {task}")
-            result = self.execute_task(task)
-            print(f"Résultat : {result[:100]}...") # Log court pour la console
+            name_ent = task.split(':')[0]
+            print(f"\nTraitement de : {name_ent}...") # Log court pour la console
+            result = self.execute_task(task, name_ent)
+            time.sleep(5) # Pause entre les tâches pour éviter les surcharges
+       
         print("\n--- Toutes les tâches ont été traitées ---")
 
-    def execute_task(self, task: str):
+    def execute_task(self, task: str, name_ent: str):
         """Exécute une tâche spécifique : Recherche Web + Log GSheet."""
         if not self.web_tool:
             return "Erreur : WebTool non configuré."
@@ -27,18 +31,21 @@ class Agent:
         try:
             # 1. Recherche d'informations
             search_results = self.web_tool.search(task)
-            
-            # 2. Préparation des données pour GSheet
-            # Format : [Date, Tâche, Résultat (tronqué si trop long)]
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            log_data = [timestamp, task, str(search_results)[:500]] 
-            print(f"res: {search_results}...") # Log court pour la console
-            # 3. Enregistrement dans Google Sheets
-            if self.gsheet_tool:
-                self.gsheet_tool.write_sheet(log_data)
-                return f"Succès : Recherche effectuée et loggée dans GSheet."
+            print(f"Résultat : {search_results[0]}...") # Log court pour la console
+            if not search_results:
+                print("Aucun résultat trouvé.")
+                return "Aucun résultat trouvé."
             else:
-                return f"Succès (Web uniquement) : {search_results[:50]}"
+                # 2. Préparation des données pour GSheet
+                if self.gsheet_tool:
+                    find_row = self.gsheet_tool.find_row(name_ent)
+                    self.gsheet_tool.update_sheet(row_nb=find_row, values=[search_results["link"], name_ent])   
+                    if find_row:
+                        print(f"Log mis à jour pour {name_ent} dans GSheet.")
+                    else:
+                        print(f"Log ajouté pour {name_ent} dans GSheet.")
+                else:
+                    return f"Succès (Web uniquement)"
                 
         except Exception as e:
             error_msg = f"Erreur lors de l'exécution : {str(e)}"
