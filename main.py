@@ -14,9 +14,14 @@ def main():
     
     # Création de l'agent
     agent = Agent(web_tool=web_tool, gsheet_tool=gsheet_tool)
-    
+
+    taches = [
+    "\"data dynamics consulting\"",                     # Recherche exacte (avec guillemets)
+    "data dynamics consulting -site:datadynamicsinc.com", # Exclure le site principal
+    ]   
+
     # Boucle principale de l'agent
-    agent.run()
+    agent.run(taches)
 
 
 if __name__ == "__main__":
