@@ -15,11 +15,6 @@ def main():
     # Création de l'agent
     agent = Agent(web_tool=web_tool, gsheet_tool=gsheet_tool)
 
-    taches = [
-    "Read input file",                              # Lit la liste des contacts à rechercher
-    "Search contact and log contact information",   # Recherche url et site name
-    ]   
-
     file_input = pd.read_csv(r"G:\Mon Drive\DDCM\Propals\techinnovparticipants.csv", sep='§', encoding='utf-8')
     print(
         f"File read successfully. Number of rows: {len(file_input)}. Columns: {file_input.columns.tolist()}"   
