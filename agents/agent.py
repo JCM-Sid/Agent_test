@@ -5,10 +5,12 @@ import time
 
 class Agent:
     """Agent autonome capable d'exécuter diverses tâches."""
-    def __init__(self, web_tool=None, gsheet_tool=None):
+
+    def __init__(self, web_tool=None, gsheet_tool=None, llm_tool=None):
         """Initialise l'agent avec les outils disponibles."""
         self.web_tool = web_tool
         self.gsheet_tool = gsheet_tool
+        self.llm_tool = llm_tool
         self.name = "Agent Autonome"
 
     def run(self, task_list: list):
@@ -40,10 +42,20 @@ class Agent:
                 name_ent = task.split(":")[0]
                 act_ent = task.split(":")[1] if len(task.split(":")) > 1 else "N/A"
                 link_ent = first_result["link"]
-                print(f"Infos {name_ent} {link_ent} {act_ent} \n")  # Log court pour la console
+                print(f"Infos {name_ent} {link_ent} \n")  # Log court pour la console
+                req_llm = f"Donne une description concise de {name_ent} , \
+                    un nom de contact et un email de contact ,  \
+                    Reponds avec un json \
+                        'description': ajoute la description ici ,\
+                        'contact_name': ajoute le nom du contact ici, \
+                        'contact_email': ajoute l'email du contact ici "
+
+                llm_response = self.llm_tool.interroge_llm(req_llm)
+                print(f"LLM Response: {llm_response}")  # Log de la réponse du LLM
+
                 if self.gsheet_tool:
                     find_row = self.gsheet_tool.find_row(name_ent)
-                    self.gsheet_tool.update_sheet(row_nb=find_row, values=[link_ent, name_ent, "", "", act_ent, "Fr", "", "TechInnov", ""])
+                    # self.gsheet_tool.update_sheet(row_nb=find_row, values=[link_ent, name_ent, "", "", act_ent, "Fr", "", "TechInnov", ""])
                     if find_row:
                         print(f"Infos mises à jour pour {name_ent} dans GSheet.")
                     else:
