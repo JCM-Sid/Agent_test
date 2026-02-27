@@ -1,44 +1,55 @@
-import os
-
 from openai import OpenAI
 
-
 class LLMTool:
-    # Outil pour interagir avec LLM (Kimi K2) pour obtenir des réponses à partir de questions posées.
-    def __init__(self):
-        """Initialise l'outil LLMTool."""
+    """Outil LLM optimisé pour un Agent (Génération de texte)."""
+
+    def __init__(self, model_name="gemma3:4b"):
+        """
+        Initialise l'outil avec un focus sur la précision des instructions.
+        Modèles recommandés pour un agent : 'qwen3:8b' ou 'gemma3:4b'.
+        """
         self.name = "llm_tool"
+        self.model_name = model_name
 
-        # Configuration des credentials
-        API_KimiK2 = os.getenv("KimiK2_API_KEY")  # Pas utilisé dans la suite du code actuel
-
+        # Connexion à Ollama via l'interface compatible OpenAI
         self.client = OpenAI(
-            api_key="KimiK2_API_KEY",  # Replace MOONSHOT_API_KEY with the API Key you obtained from the Kimi Open Platform
-            base_url="https://api.moonshot.ai/v1",
+            api_key="ollama",
+            base_url="http://localhost:11434/v1",
         )
-        print("LLM KIMI K2 initialisé avec succès.")
+        print(f"Outil Agent initialisé avec le modèle : {self.model_name}")
 
-    def interroge_llm(self, question: str):
-        """Lit les données d'une plage spécifique."""
-        print(f"Interrogation du LLM avec la question : {question}")
+    def interroge_llm(self, prompt: str, system_instruction: str = "Tu es un agent expert en génération de texte."):
+        """
+        Génère du texte en suivant les instructions de l'agent.
+        """
+        print(f"L'agent sollicite le modèle {self.model_name}...")
+
         try:
-            # Appel à l'API pour récupérer les valeurs
             completion = self.client.chat.completions.create(
-                model="kimi-k2-turbo-preview",
+                model=self.model_name,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": "You are Kimi, an AI assistant provided by Moonshot AI. You follow strickly the user's instructions and provide helpful and accurate answers",
-                    },
-                    {"role": "user", "content": question},
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
                 ],
-                temperature=0.2,
+                # On baisse la température pour que l'agent reste fiable et cohérent
+                temperature=0.3,
+                max_tokens=1000,
             )
 
-            # We receive a response from the Kimi large language model via the API (role=assistant)
-            print("completion :", completion.choices[0].message.content)
-            return completion.choices[0].message.content
+            resultat = completion.choices[0].message.content
+            return resultat
 
         except Exception as e:
-            print(f"Erreur la demande du LLM {e}")
-            return []
+            print(f"Erreur lors de la génération : {e}")
+            return None
+
+# --- Exemple d'intégration dans un workflow d'agent ---
+if __name__ == "__main__":
+    # On utilise Qwen3 8B car c'est le plus robuste pour suivre des consignes d'agent
+    mon_outil = LLMTool(model_name="gemma3:4b")
+
+    consigne = "Rédige un court article de blog sur les bienfaits de l'IA locale."
+    reponse = mon_outil.interroge_llm(consigne)
+
+    print("\n--- TEXTE GÉNÉRÉ PAR L'AGENT ---\n")
+    print(reponse)

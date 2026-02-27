@@ -48,7 +48,16 @@ class WebTool:
 
                 # Filtrage par domaine pour éviter les doublons
                 if domain not in seen_domains:
-                    if "linkedin" in href or "twitter" in href or "facebook" in href:
+                    if (
+                        "linkedin" in href
+                        or "twitter" in href
+                        or "facebook" in href
+                        or "youtube" in href
+                        or "pdf" in href
+                        or "doc" in href
+                        or "xls" in href
+                        or "carrer" in href
+                    ):
                         continue  # On ignore les résultats LinkedIn, Twitter et Facebook
 
                     results.append(
@@ -60,7 +69,7 @@ class WebTool:
                     )
                     seen_domains.add(domain)
 
-                # On s'arrête à 10 résultats pour ne pas surcharger l'Agent
+                # On s'arrête à 3 résultats pour ne pas surcharger l'Agent
                 if len(results) >= 3:
                     break
 

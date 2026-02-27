@@ -30,8 +30,11 @@ class Agent:
             return "Erreur : WebTool non configuré."
 
         try:
+            name_ent = task.split(":")[0]
+            act_ent = task.split(":")[1] if len(task.split(":")) > 1 else "N/A"
+
             # 1. Recherche d'informations
-            search_results = self.web_tool.search(task)
+            search_results = self.web_tool.search(name_ent)
             print(f"Résultat : {search_results[0]}...")  # Log court pour la console
             if not search_results:
                 print("Aucun résultat trouvé.")
@@ -39,8 +42,7 @@ class Agent:
             else:
                 # 2. Préparation des données pour GSheet
                 first_result = search_results[0]
-                name_ent = task.split(":")[0]
-                act_ent = task.split(":")[1] if len(task.split(":")) > 1 else "N/A"
+
                 link_ent = first_result["link"]
                 print(f"Infos {name_ent} {link_ent} \n")  # Log court pour la console
                 req_llm = f"Donne une description concise de {name_ent} , \
@@ -67,3 +69,98 @@ class Agent:
             error_msg = f"Erreur lors de l'exécution : {str(e)}"
             print(error_msg)
             return error_msg
+
+
+import re
+
+
+class AgenticAI:
+    def __init__(self, llm_tool, tools):
+        self.llm = llm_tool
+        self.tools = tools  # Dictionnaire de fonctions {name: function}
+        self.max_steps = 5
+
+    def run(self, goal):
+        print(f"🚀 Objectif : {goal}")
+
+        # Le prompt système qui définit les règles du jeu (ReAct)
+        system_prompt = f"""
+        Tu es un agent autonome. Tu as accès aux outils suivants :
+        {self._render_tools_desc()}
+
+        Pour résoudre la tâche, tu dois suivre ce format :
+        Pensée : Ce que tu comptes faire.
+        Action : Le nom de l'outil à utiliser (parmi {list(self.tools.keys())}).
+        Entrée : L'argument pour l'outil.
+        (Attends l'Observation)
+        
+        Quand tu as terminé, réponds par :
+        Réponse Finale : Le résultat final.
+        """
+
+        history = [{"role": "system", "content": system_prompt}, {"role": "user", "content": goal}]
+
+        for i in range(self.max_steps):
+            # 1. RÉFLEXION (Reasoning)
+            response = self.llm.interroge_llm(self._format_history(history))
+            print(f"\n--- 🧠 Pensée de l'Agent (Etape {i + 1}) ---")
+            print(response)
+
+            # 2. EXTRACTION DE L'ACTION
+            action = self._extract_action(response)
+
+            if not action:  # Si l'IA donne la réponse finale
+                if "Réponse Finale" in response:
+                    return response
+                break
+
+            # 3. EXÉCUTION DE L'OUTIL (Acting)
+            tool_name, tool_input = action
+            print(f"🛠️ Utilisation de {tool_name} avec : {tool_input}")
+
+            observation = self.tools[tool_name](tool_input)
+            print(f"👁️ Observation : {str(observation)[:100]}...")
+
+            # 4. MISE À JOUR DE LA MÉMOIRE (Observing)
+            history.append({"role": "assistant", "content": response})
+            history.append({"role": "user", "content": f"Observation : {observation}"})
+
+    def _render_tools_desc(self):
+        return "\n".join([f"- {name}: {func.__doc__}" for name, func in self.tools.items()])
+
+    def _extract_action(self, text):
+        action_match = re.search(r"Action\s*:\s*(.*)", text)
+        input_match = re.search(r"Entrée\s*:\s*(.*)", text)
+        if action_match and input_match:
+            return action_match.group(1).strip(), input_match.group(1).strip()
+        return None
+
+    def _format_history(self, history):
+        # Transforme l'historique en string pour les modèles non-chat ou simplifie
+        return "\n".join([f"{m['role']}: {m['content']}" for m in history])
+
+
+# --- Exemple d'utilisation réelle ---
+
+
+# 1. Définition des fonctions "Outils"
+def search_web(query):
+    """Recherche des informations sur le web (entreprises, contacts)."""
+    # Ici, appeler ton WebTool réel
+    return "Snippet: TechCorp est une IA spécialisée en robotique. Email: info@techcorp.com"
+
+
+def save_to_sheet(data):
+    """Enregistre les données structurées dans Google Sheets."""
+    print(f"LOG: Sauvegarde de {data}...")
+    return "Succès : Données enregistrées."
+
+
+# 2. Lancement de l'agent
+tools_map = {"recherche": search_web, "sauvegarde_gsheet": save_to_sheet}
+
+# Utilise Deepseek-R1 pour sa capacité de raisonnement "Chain of Thought"
+my_llm = LLMTool(model_name="deepseek-r1:latest")
+agent = AgenticAI(llm_tool=my_llm, tools=tools_map)
+
+agent.run("Trouve les infos sur TechCorp et enregistre-les dans le sheet.")
