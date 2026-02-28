@@ -38,6 +38,30 @@ class LLMTool:
 
             resultat = completion.choices[0].message.content
             return resultat
+        except Exception as e:
+            print(f"Erreur lors de la interroge_llm : {e}")
+            return None
+
+    def agent_plan_llm(self, prompt: str, system_instruction: str = "Tu es un agent pour la plannification des taches."):
+        """
+        Génère du texte en suivant les instructions de l'agent.
+        """
+        print(f"L'agent sollicite le modèle {self.model_name}...")
+
+        try:
+            completion = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt},
+                ],
+                # On baisse la température pour que l'agent reste fiable et cohérent
+                temperature=0.3,
+                max_tokens=1000,
+            )
+
+            resultat = completion.choices[0].message.content
+            return resultat
 
         except Exception as e:
             print(f"Erreur lors de la génération : {e}")
