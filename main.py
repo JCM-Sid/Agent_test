@@ -57,18 +57,23 @@ def  main_agent_advanced():
     print(f"File read successfully. Number of rows: {len(file_input)}. Columns: {file_input.columns.tolist()}")
     
     unique_entreprise = file_input["titre"].unique()
-    uniq_entreprise_et_description = []
-    for entreprise in unique_entreprise:
-        description = file_input[file_input["titre"] == entreprise]["description"].iloc[0]
-        uniq_entreprise_et_description.append((f"{entreprise} : {description}"))
-    print(f"Unique entreprises: {len(uniq_entreprise_et_description)}")
-    print(f"Unique entreprises and descriptions: {uniq_entreprise_et_description[:5]}")
-
-
+    print(f"Uniques entreprises: {len(unique_entreprise)}")
+    print(f"5 premieres: {unique_entreprise[:5]}")
+    
     # Boucle principale de l'agent
-    #agent.run(uniq_entreprise_et_description)
-    agent.run(f"Trouve les infos sur TechCorp et enregistre-les dans le sheet.")
+    uniq_entreprise_et_description = []
+    count =1 
+    for entreprise in unique_entreprise:
+        #description = file_input[file_input["titre"] == entreprise]["description"].iloc[0]
+        #uniq_entreprise_et_description.append((f"{entreprise} : {description}"))
+        agent.run(f"Trouve les infos sur {entreprise} et identifie un contact (nom, email).")
+        if count >= 2:  # Limite à 2 entreprises pour les tests
+            break
+        count += 1
 
+
+
+    
 
 if __name__ == "__main__":
     #main_agent_simple()

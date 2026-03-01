@@ -57,7 +57,7 @@ class LLMTool:
                 ],
                 # On baisse la température pour que l'agent reste fiable et cohérent
                 temperature=0.3,
-                max_tokens=1000,
+                max_tokens=5000,
             )
 
             resultat = completion.choices[0].message.content

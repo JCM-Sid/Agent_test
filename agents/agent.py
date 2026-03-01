@@ -118,7 +118,7 @@ class AgenticAI:
             print(f"🛠️ Utilisation de {tool_name} avec : {tool_input}")
 
             observation = self.tools[tool_name](tool_input)
-            print(f"👁️ Observation : {str(observation)[:100]}...")
+            #print(f"👁️ Observation : {str(observation)[:100]}...")
 
             # 4. MISE À JOUR DE LA MÉMOIRE (Observing)
             history.append({"role": "assistant", "content": response})
