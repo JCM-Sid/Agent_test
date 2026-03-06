@@ -3,7 +3,7 @@ from openai import OpenAI
 class LLMTool:
     """Outil LLM optimisé pour un Agent (Génération de texte)."""
 
-    def __init__(self, model_name="gemma3:4b"):
+    def __init__(self, model_name="qwen3.5:4b"):
         """
         Initialise l'outil avec un focus sur la précision des instructions.
         Modèles recommandés pour un agent : 'qwen3:8b' ou 'gemma3:4b'.
