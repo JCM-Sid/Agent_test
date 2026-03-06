@@ -1,7 +1,6 @@
 """Agent principal pour les tâches autonomes."""
-
 import time
-
+import re
 
 class Agent:
     """Agent autonome capable d'exécuter diverses tâches."""
@@ -71,9 +70,6 @@ class Agent:
             return error_msg
 
 
-import re
-
-
 class AgenticAI:
     def __init__(self, llm_tool, tools):
         self.llm = llm_tool
@@ -84,7 +80,7 @@ class AgenticAI:
         print(f"🚀 Objectif : {goal}")
 
         # Le prompt système qui définit les règles du jeu (ReAct)
-        system_prompt = f"""
+        system_instruction = f"""
         Tu es un agent autonome. Tu as accès aux outils suivants :
         {self._render_tools_desc()}
 
@@ -98,17 +94,19 @@ class AgenticAI:
         Réponse Finale : Le résultat final.
         """
 
-        history = [{"role": "system", "content": system_prompt}, {"role": "user", "content": goal}]
+        history = [{"role": "system", "content": system_instruction}, {"role": "user", "content": goal}]
 
         for i in range(self.max_steps):
             # 1. RÉFLEXION (Reasoning)
-            response = self.llm.interroge_llm(self._format_history(history))
+            #print(f"\n--- 🧠 Pensée de l'Agent (Etape {i + 1}) ---")
+            #print(f"Historique : {[h['content'] for h in history]}")  # Log de l'historique
+            #print(f"Prompt envoyé au LLM : {self._format_history(history)}")  # Log du prompt
+            response = self.llm.agent_plan_llm(self._format_history(history))
             print(f"\n--- 🧠 Pensée de l'Agent (Etape {i + 1}) ---")
             print(response)
 
             # 2. EXTRACTION DE L'ACTION
             action = self._extract_action(response)
-
             if not action:  # Si l'IA donne la réponse finale
                 if "Réponse Finale" in response:
                     return response
@@ -119,7 +117,7 @@ class AgenticAI:
             print(f"🛠️ Utilisation de {tool_name} avec : {tool_input}")
 
             observation = self.tools[tool_name](tool_input)
-            print(f"👁️ Observation : {str(observation)[:100]}...")
+            #print(f"👁️ Observation : {str(observation)[:100]}...")
 
             # 4. MISE À JOUR DE LA MÉMOIRE (Observing)
             history.append({"role": "assistant", "content": response})
@@ -138,29 +136,3 @@ class AgenticAI:
     def _format_history(self, history):
         # Transforme l'historique en string pour les modèles non-chat ou simplifie
         return "\n".join([f"{m['role']}: {m['content']}" for m in history])
-
-
-# --- Exemple d'utilisation réelle ---
-
-
-# 1. Définition des fonctions "Outils"
-def search_web(query):
-    """Recherche des informations sur le web (entreprises, contacts)."""
-    # Ici, appeler ton WebTool réel
-    return "Snippet: TechCorp est une IA spécialisée en robotique. Email: info@techcorp.com"
-
-
-def save_to_sheet(data):
-    """Enregistre les données structurées dans Google Sheets."""
-    print(f"LOG: Sauvegarde de {data}...")
-    return "Succès : Données enregistrées."
-
-
-# 2. Lancement de l'agent
-tools_map = {"recherche": search_web, "sauvegarde_gsheet": save_to_sheet}
-
-# Utilise Deepseek-R1 pour sa capacité de raisonnement "Chain of Thought"
-my_llm = LLMTool(model_name="deepseek-r1:latest")
-agent = AgenticAI(llm_tool=my_llm, tools=tools_map)
-
-agent.run("Trouve les infos sur TechCorp et enregistre-les dans le sheet.")
