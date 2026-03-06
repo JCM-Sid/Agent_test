@@ -98,16 +98,15 @@ class AgenticAI:
 
         for i in range(self.max_steps):
             # 1. RÉFLEXION (Reasoning)
-            print(f"\n--- 🧠 Pensée de l'Agent (Etape {i + 1}) ---")
+            #print(f"\n--- 🧠 Pensée de l'Agent (Etape {i + 1}) ---")
             #print(f"Historique : {[h['content'] for h in history]}")  # Log de l'historique
-            print(f"Prompt envoyé au LLM : {self._format_history(history)}")  # Log du prompt
+            #print(f"Prompt envoyé au LLM : {self._format_history(history)}")  # Log du prompt
             response = self.llm.agent_plan_llm(self._format_history(history))
             print(f"\n--- 🧠 Pensée de l'Agent (Etape {i + 1}) ---")
             print(response)
 
             # 2. EXTRACTION DE L'ACTION
             action = self._extract_action(response)
-
             if not action:  # Si l'IA donne la réponse finale
                 if "Réponse Finale" in response:
                     return response

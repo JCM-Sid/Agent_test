@@ -13,7 +13,7 @@ def main_agent_simple():
     # Initialisation des outils
     web_tool = WebTool()
     gsheet_tool = GSheetTool()
-    llm_tool = LLMTool(model_name="gemma3:4b")
+    llm_tool = LLMTool(model_name="qwen3.5:4b")
 
     # Création de l'agent
     agent = Agent(web_tool=web_tool, gsheet_tool=gsheet_tool, llm_tool=llm_tool)
@@ -38,7 +38,7 @@ def  main_agent_advanced():
     # Initialisation des outils
     web_tool = WebTool()
     gsheet_tool = GSheetTool()
-    llm_tool = LLMTool(model_name="gemma3:4b")
+    llm_tool = LLMTool(model_name="qwen3.5:4b")
 
     # 2. Lancement de l'agent
     tools_map = {
