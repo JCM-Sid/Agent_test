@@ -174,26 +174,43 @@ class MCPMultiClient:
 async def main():
     print(f"Modèle : {OLLAMA_MODEL}")
 
+    # --- Gestion de l'argument de ligne de commande ---
+    # Si sys.argv a plus d'un élément, on prend le texte après le nom du script
+    if len(sys.argv) > 1:
+        user_query = sys.argv[1]
+    else:
+        # Valeur par défaut si aucun argument n'est fourni
+        user_query = "Donne-moi les previsions sur 3 jours pour dans la ville du chateau du roi soleil ?"
+
     client = MCPMultiClient()
     try:
-        await client.connect_server("weather-server", ["python", "mcp_tools.py", "weather"])
-        await client.connect_server("forecast-server", ["python", "mcp_tools.py", "forecast"])
-        await client.connect_server("searx-server", ["python", "mcp_tools.py", "searx"])
+        # Connexion aux serveurs (utilisation de sys.executable pour plus de fiabilité)
+        await client.connect_server("weather-server", [sys.executable, "mcp_tools.py", "weather"])
+        await client.connect_server("forecast-server", [sys.executable, "mcp_tools.py", "forecast"])
+        await client.connect_server("searx-server", [sys.executable, "mcp_tools.py", "searx"])
+        await client.connect_server("linkedin-server", [sys.executable, "mcp_tools.py", "linkedin"])
 
-        queries = [
-            "Quel temps fait-il dans la ville où se déroulera la prochaine COP (conférence climat) ?",
-            "Donne-moi les previsions sur 3 jours pour dans la ville du roi soleil ?",
-            # "Donne-moi les previsions sur 3 jours pour dans la plus grande ville du pays du soleil levant",
-            # "Compare la meteo actuelle de London avec ses previsions des 3 prochains jours.",
-        ]
+        print(f"\n{'=' * 60}")
+        print(f"Question : {user_query}")
+        print(f"{'=' * 60}")
 
-        for q in queries:
-            print(f"\n{'=' * 60}\nQuestion : {q}\n{'=' * 60}")
-            answer = await client.chat_with_tools(q)
-            print(f"\nReponse :\n{answer}")
+        # L'agent va maintenant devoir utiliser SearX pour trouver "Versailles"
+        # avant d'appeler le forecast-server.
+        answer = await client.chat_with_tools(user_query)
+
+        print(f"\nReponse :\n{answer}")
+
+    except Exception as e:
+        print(f"\n[ERREUR] Une erreur est survenue : {e}")
     finally:
         await client.close()
 
 
 if __name__ == "__main__":
+    # On s'assure que l'encodage est correct pour Windows (évite les erreurs de caractères spéciaux)
+    if sys.platform == "win32":
+        import os
+
+        os.environ["PYTHONIOENCODING"] = "utf-8"
+
     asyncio.run(main())
