@@ -189,13 +189,12 @@ async def main():
         await client.connect_server("forecast-server", [sys.executable, "mcp_tools.py", "forecast"])
         await client.connect_server("searx-server", [sys.executable, "mcp_tools.py", "searx"])
         await client.connect_server("linkedin-server", [sys.executable, "mcp_tools.py", "linkedin"])
+        await client.connect_server("theirstack-server", [sys.executable, "mcp_tools.py", "theirstack"])
 
         print(f"\n{'=' * 60}")
         print(f"Question : {user_query}")
         print(f"{'=' * 60}")
 
-        # L'agent va maintenant devoir utiliser SearX pour trouver "Versailles"
-        # avant d'appeler le forecast-server.
         answer = await client.chat_with_tools(user_query)
 
         print(f"\nReponse :\n{answer}")

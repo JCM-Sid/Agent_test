@@ -225,10 +225,72 @@ async def call_linkedin_tool(name: str, arguments: dict) -> list[types.TextConte
 
 
 # =================================================================
+# SERVEUR 5: THEIRSTACK (Job Market & Tech Insights)
+# =================================================================
+# Note: TheirStack est un serveur distant.
+# Cette implémentation permet de l'appeler via ton orchestrateur.
+theirstack_app = Server("theirstack-server")
+# THEIRSTACK_API_KEY = os.environ.get("THEIRSTACK_API_KEY", "TON_API_KEY_ICI")
+
+
+@theirstack_app.list_tools()
+async def list_theirstack_tools() -> list[types.Tool]:
+    return [
+        types.Tool(
+            name="search_jobs",
+            description="Recherche des offres d'emploi et les technologies utilisées par les entreprises.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Poste ou technologie (ex: Python Developer)"},
+                    "location": {"type": "string", "description": "Ville ou pays"},
+                    "limit": {"type": "integer", "default": 5},
+                },
+                "required": ["query"],
+            },
+        )
+    ]
+
+
+@theirstack_app.call_tool()
+async def call_theirstack_tool(name: str, arguments: dict) -> list[types.TextContent]:
+    if name != "search_jobs":
+        raise ValueError(f"Unknown tool: {name}")
+
+    # On appelle l'API de TheirStack
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        # Note: On utilise ici leur API directement pour le tool
+        # headers = {"Authorization": f"Bearer {THEIRSTACK_API_KEY}"}
+        params = {"q": arguments["query"], "location": arguments.get("location", ""), "limit": arguments.get("limit", 5)}
+
+        try:
+            # Simulation de l'appel MCP distant vers TheirStack
+            # resp = await client.get("https://api.theirstack.com/v1/jobs/search", headers=headers, params=params)
+            resp = await client.get("https://api.theirstack.com/v1/jobs/search", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+
+            jobs = data.get("data", [])
+            if not jobs:
+                return [types.TextContent(type="text", text="Aucune offre trouvée.")]
+
+            results = []
+            for job in jobs:
+                results.append(f"- {job['job_title']} chez {job['company_name']} ({job['location']})")
+
+            return [types.TextContent(type="text", text="\n".join(results))]
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"Erreur TheirStack: {str(e)}")]
+
+
+# N'oublie pas d'ajouter 'theirstack': theirstack_app dans ton dictionnaire apps !
+
+
+# =================================================================
 # LOGIQUE DE LANCEMENT (Sélecteur via argument)
 # =================================================================
 async def run_server(server_type: str):
-    apps = {"weather": weather_app, "forecast": forecast_app, "searx": searx_app, "linkedin": linkedin_app}
+    apps = {"weather": weather_app, "forecast": forecast_app, "searx": searx_app, "linkedin": linkedin_app, "theirstack": theirstack_app}
 
     if server_type not in apps:
         print("Usage: python mcp_tools.py [weather|forecast|searx]")
