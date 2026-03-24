@@ -59,28 +59,6 @@ class MCPMultiClient:
         resp = await session.list_tools()
         print(f"✅ Serveur [{name}] connecté avec succès ({len(resp.tools)} outils).")
 
-    """
-    async def connect_server(self, name: str, server_script_path: str):
-        is_python = server_script_path.endswith(".py")
-        is_js = server_script_path.endswith(".js")
-        if not (is_python or is_js):
-            raise ValueError("Server script must be a .py or .js file")
-
-        command = sys.executable if is_python else "node"
-        abs_path = str(Path(server_script_path).resolve())
-        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-
-        server_params = StdioServerParameters(command=command, args=[abs_path], env=env)
-        stdio_transport = await self.exit_stack.enter_async_context(stdio_client(server_params))
-        stdio, write = stdio_transport
-        session = await self.exit_stack.enter_async_context(ClientSession(stdio, write))
-        await session.initialize()
-        self.sessions[name] = session
-
-        resp = await session.list_tools()
-        print(f"[{name}] tools: {[t.name for t in resp.tools]}")
-    """
-
     async def list_all_tools(self) -> list[dict]:
         aggregated = []
         for server_name, session in self.sessions.items():
