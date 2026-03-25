@@ -7,46 +7,17 @@ from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from tools.doctolib import call_doctolib_tool  # Importation de ta logique
 from fastapi.responses import Response # Ajoutez cet import en haut
+from starlette.applications import Starlette
+from starlette.routing import Route
 
-app = FastAPI()
+
+# 2️⃣ objets globaux
+app = Starlette()
 mcp_server = Server("remote-bridge")
-sse_transport = SseServerTransport("messages")
+#sse_transport = SseServerTransport("/messages")
+sse_transport = SseServerTransport("/sse/messages")
 
-
-# =================================================================
-# MCP SSE (pour n8n)
-sse_transport = SseServerTransport("/messages")
-
-# 2. Les fonctions de bridge (SANS décorateurs @app)
-async def handle_sse(request: Request):
-    # Ici, on utilise _send (avec underscore) car c'est ce que Starlette 
-    # expose quand on passe par add_route
-    async with sse_transport.connect_sse(
-        request.scope, 
-        request.receive, 
-        request._send
-    ) as (read_stream, write_stream):
-        await mcp_server.run(
-            read_stream, 
-            write_stream, 
-            mcp_server.create_initialization_options()
-        )
-
-
-async def handle_messages(request: Request):
-    await sse_transport.handle_post_message(
-        request.scope, 
-        request.receive, 
-        request._send
-    )
-    return Response(status_code=202)
-
-# 3. Les routes (C'est cette méthode qui rend _send disponible correctement)
-app.add_route("/sse", handle_sse)
-app.add_route("/messages", handle_messages, methods=["POST"])
-
-# =================================================================
-# Liste des OUTILS distants
+# 3️⃣ outils MCP (AVANT les handlers ou après, mais après init serveur)
 
 @mcp_server.list_tools()
 async def list_tools():
@@ -57,8 +28,8 @@ async def list_tools():
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "spec": {"type": "string", "description": "Spécialité ex: medecin-generaliste"},
-                    "location": {"type": "string", "description": "Ville"},
+                    "spec": {"type": "string"},
+                    "location": {"type": "string"},
                     "limit": {"type": "integer", "default": 10},
                 },
                 "required": ["spec"],
@@ -75,11 +46,6 @@ async def list_tools():
         ),
     ]
 
-
-# =================================================================
-# Appel des outils
-
-
 @mcp_server.call_tool()
 async def call_tool(name: str, arguments: dict):
     if name == "get_current_weather":
@@ -91,10 +57,34 @@ async def call_tool(name: str, arguments: dict):
     raise ValueError(f"Outil non trouvé : {name}")
 
 
-## =================================================================
-# ROUTES FASTAPI (pour tests manuels)
-# app.add_route("/sse", handle_sse)
-# app.add_route("/messages", handle_messages, methods=["POST"])
+
+
+# 4️⃣ handlers ASGI
+
+async def handle_sse(scope, receive, send):
+    if scope["type"] != "http":
+        return
+
+    async with sse_transport.connect_sse(scope, receive, send) as (r, w):
+        await mcp_server.run(r, w, mcp_server.create_initialization_options())
+
+
+async def handle_messages(scope, receive, send):
+    if scope["type"] != "http":
+        return
+
+    await sse_transport.handle_post_message(scope, receive, send)
+
+# 5️⃣ routes (TOUJOURS à la fin)
+
+app.router.routes.append(
+    Route("/sse", endpoint=handle_sse, methods=["GET"])
+)
+
+app.router.routes.append(
+    Route("/sse/messages", endpoint=handle_messages, methods=["POST"])
+)
+
 
 # =================================================================
 # MAIN

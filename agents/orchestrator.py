@@ -46,24 +46,19 @@ class MCPOrchestrator:
         print("✅ Serveur Local connecté")
 
     async def connect_remote_server(self, url: str):
-        """Connexion au serveur FastAPI via SSE"""
         print(f"Tentative de connexion SSE sur : {url}")
-        
-        # Votre version de sse_client semble attendre (url) ou (client, url)
-        # On va utiliser la version la plus stable pour votre signature :
         try:
-            # On laisse le sse_client gérer son propre client HTTP interne
-            # pour éviter les conflits de timeouts
             read, write = await self.exit_stack.enter_async_context(sse_client(url))
-            
             session = await self.exit_stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
+            await asyncio.wait_for(session.initialize(), timeout=10.0)  # ← timeout
             self.sessions.append(session)
             print(f"✅ Serveur Remote connecté : {url}")
+        except asyncio.TimeoutError:
+            print("❌ Timeout sur session.initialize()")
+            raise
         except Exception as e:
             print(f"❌ Erreur de connexion : {e}")
             raise
-
 
     async def get_all_tools(self):
         """Récupère les outils de TOUS les serveurs connectés"""
@@ -103,46 +98,42 @@ class MCPOrchestrator:
         )
 
     async def chat_with_tools(self, user_query: str) -> str:
-        tools_meta = await self.get_all_tools()
-        #ool_index = {t["name"]: t for t in tools_meta}
-        tool_index = {t["tool"].name: t for t in tools_meta}
+        tools_list = await self.get_all_tools()
+        
+        # Convert Tool objects → OpenAI-compatible dicts
+        tools_meta = [
+            {
+                "name": t.name,
+                "description": t.description,
+                "input_schema": t.inputSchema,
+            }
+            for t in tools_list
+        ]
+        
+        tool_index = {t["name"]: t for t in tools_meta}  # now consistent
+        
         messages = [
             {"role": "system", "content": "Tu es un assistant personnel. Utilise les outils disponibles pour répondre."},
             {"role": "user", "content": user_query},
         ]
 
         while True:
-            # ollama_chat est synchrone — on l'exécute dans un thread pour ne pas bloquer asyncio
-            response = await asyncio.get_event_loop().run_in_executor(None, lambda: self.ollama_chat(messages, tools_meta))
-
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: self.ollama_chat(messages, tools_meta)
+            )
             msg = response.choices[0].message
-            # Ajoute la réponse assistant à l'historique
             messages.append({"role": "assistant", "content": msg.content, "tool_calls": msg.tool_calls})
 
-            # Pas de tool calls → réponse finale
             if not msg.tool_calls:
                 return msg.content or "(pas de réponse)"
 
-            # Exécute chaque tool call
             for tc in msg.tool_calls:
-                full_name = tc.function.name
                 args = json.loads(tc.function.arguments or "{}")
-                
-                # Correction de l'appel ici :
-                print(f"\n-> Tool call : {full_name}({json.dumps(args, ensure_ascii=False)})")
-                result = await self.call_tool(full_name, args) # Appel avec 2 arguments
-                
-                # Extraire le texte du résultat (result est souvent une liste de TextContent)
-                result_text = result[0].text if result and len(result) > 0 else "Pas de résultat"
-                
+                print(f"\n-> Tool call : {tc.function.name}({json.dumps(args, ensure_ascii=False)})")
+                result = await self.call_tool(tc.function.name, args)
+                result_text = result.content[0].text if result.content else "Pas de résultat"  # ← CallToolResult has .content
                 print(f"<- Résultat  : {result_text[:200]}...")
-
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": result_text,
-                })
-                
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_text})
     
     async def close(self):
         await self.exit_stack.aclose()
@@ -158,9 +149,10 @@ async def main():
     # Connection au serveur local (mcp_local_server.py)
     script_path = os.path.join(os.path.dirname(__file__), "..", "mcp_local_server.py")
     await client.connect_local_server(sys.executable, [script_path])
+    
     # Connection au serveur distant (FastAPI + outils météo/doctolib)
-    #await client.connect_remote_server("https://ddcm-local.myftp.org/mcp/sse")
-    await client.connect_remote_server("http://192.168.1.12:8123/sse")
+    await client.connect_remote_server("http://192.168.1.12:8123/sse/")
+    #await client.connect_remote_server("https://ddcm-local.myftp.org/mcp/sse/")
     print("--- Orchestrateur MCP prêt (Ollama) ---")
     print("Posez une question (ex: 'Quel temps fait-il à Paris ?' ou 'Cherche des jobs Python à Lyon')")
 
