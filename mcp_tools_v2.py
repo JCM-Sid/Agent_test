@@ -25,7 +25,6 @@ ollama_client = OpenAI(
     base_url="http://localhost:11434/v1",
 )
 
-
 # --- CONFIGURATION COMMUNE ---
 TIMEOUT = 15.0
 HEADERS = {"User-Agent": "Mozilla/5.0 (MCP Agent)"}
@@ -49,7 +48,6 @@ async def list_weather_tools() -> list[types.Tool]:
         )
     ]
 
-#####
 @weather_app.call_tool()
 async def call_weather_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name != "get_current_weather":
@@ -78,8 +76,6 @@ async def call_weather_tool(name: str, arguments: dict) -> list[types.TextConten
     }
     
     return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
-
-#####
 
 
 # =================================================================
@@ -354,6 +350,7 @@ async def call_theirstack_tool(name: str, arguments: dict) -> list[types.TextCon
 
 # =================================================================
 # SERVEUR 6: Doctolib (trouver un medecin disponible)
+# Note: Doctolib est un serveur distant.
 # =================================================================
 
 doctolib_app = Server("doctolib-server")
@@ -374,77 +371,6 @@ async def list_doctolib_tools() -> list[types.Tool]:
             },
         )
     ]
-
-@doctolib_app.call_tool()
-async def call_doctolib_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    if name != "doctolib_search":
-        raise ValueError(f"Unknown tool: {name}")
-
-    params = {"spec": arguments["spec"], "location": arguments.get("location", ""), "limit": arguments.get("limit", 5)}
-    print(f"Recherche Doctolib avec params: {params}")
-
-    #URL = "https://www.doctolib.fr/search?keyword=medecin-generaliste&location=versailles"
-    # Construction de l'URL de recherche Doctolib
-    spec = params["spec"].replace(" ", "-").lower()
-    base_url = "https://www.doctolib.fr/search"
-    URL = f"{base_url}?keyword={spec}&location={'location' in params and params['location'].replace(' ', '+').lower() or ''}"
-    print(f"URL de recherche Doctolib: {URL}")
-    firefoxOptions = webdriver.FirefoxOptions()
-    firefoxOptions.headless = True
-    browser = webdriver.Firefox(options=firefoxOptions)
-    browser.get(URL)
-    time.sleep(1)
-
-    # Extraction infos
-    h2s = browser.find_elements(By.TAG_NAME, "h2")
-    h2s = [h for h in h2s if h.text.strip().startswith("Dr") or h.text.strip().startswith("M.") or h.text.strip().startswith("Mme")]
-    list_results = ""
-
-    for h2 in h2s:
-        browser.execute_script("arguments[0].scrollIntoView();", h2)
-        time.sleep(1)
-        
-        try:
-            text = ""
-            card = h2.find_element(By.XPATH, "./ancestor::div[contains(@class,'dl-card')]")
-
-            if "Ce soignant réserve la prise de rendez-vous en ligne aux patients déjà suivis" in card.text:
-                continue
-            # Cherche une date avec au moins une heure associée
-            text = " ".join(card.text.splitlines())
-            match_date_heure = re.search(
-                r'(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+\d{1,2}\s+\w+(?:\s+\d{4})?\s+(\d{2}:\d{2})',
-                text, re.IGNORECASE
-            )
-
-            # Fallback : "Prochain RDV le ..."
-            match_prochain = re.search(r'Prochain RDV le \d{1,2} \w+ \d{4}', text)
-
-            if match_date_heure:
-                dispo = match_date_heure.group().strip()
-            elif match_prochain:
-                dispo = match_prochain.group().strip()
-            else:
-                dispo = "Aucune disponibilité"
-                continue
-
-            lines = [l_line.strip() for l_line in card.text.splitlines() if l_line.strip()]
-            
-            nom        = lines[0]                    # Dr Corinne BOYER
-            specialite = lines[1]                    # Médecin généraliste
-            adresse    = " ".join(lines[2:4])        # 26 BIS Rue Coste 78000 Versailles
-            secteur    = lines[4]                    # Conventionné secteur 1
-            
-            list_results += f"{nom} | {specialite}\n"
-            list_results += f"{adresse} | {secteur}\n"
-            list_results += f"Dispo: {dispo}\n"
-            list_results += "---\n"
-            #print(f"{nom} | {dispo}")
-        except Exception as e:
-            print(f"Erreur: {e}")
-
-    browser.close()
-    return [types.TextContent(type="text", text=list_results)]
 
 
 # =================================================================
@@ -487,7 +413,6 @@ class MCPOrchestrator:
             "get_my_profile": call_linkedin_tool,
             "post_to_linkedin": call_linkedin_tool,
             "search_jobs": call_theirstack_tool,
-            "doctolib_search": call_doctolib_tool,
         }
 
     async def get_tools_definitions(self):
@@ -556,8 +481,10 @@ class MCPOrchestrator:
                 
                 print(f" -> [Appel Outil]: {func_name}({args})")
                 
-                if func_name in self.tools_map:
-                    # Appel de la fonction définie dans votre script
+                remote_tools = ["doctolib_search"]
+                if func_name in remote_tools:
+                    result_text = await self.call_remote_tool(func_name, args)
+                elif func_name in self.tools_map:
                     result_content = await self.tools_map[func_name](func_name, args)
                     result_text = result_content[0].text
                 else:
@@ -571,6 +498,33 @@ class MCPOrchestrator:
                     "content": result_text,
                 })
 
+
+    # pour les outils distants, on fait un appel HTTP classique
+    # doctolib, 
+    async def call_remote_tool(self, func_name: str, args: dict) -> str:
+        """Appelle un outil via HTTP sur mcp_api"""
+        
+        remote_tools = {
+            "doctolib_search": {
+                "url": "https://ddcm-local.myftp.org/mcp/api/doctolib",
+                "mapping": {
+                    "spec": lambda a: a.get("spec", "").lower().replace(" ", "-").encode('ascii','ignore').decode(),
+                    "location": lambda a: a.get("location", "").replace(" ", "+").lower().encode('ascii','ignore').decode(),
+                    "limit": lambda a: a.get("limit", 5)
+                }
+            }
+        }
+        
+        if func_name not in remote_tools:
+            return "Erreur: Outil remote non trouvé."
+        
+        tool_config = remote_tools[func_name]
+        params = {k: v(args) for k, v in tool_config["mapping"].items()}
+        
+        async with httpx.AsyncClient(timeout=90) as client:
+            resp = await client.get(tool_config["url"], params=params)
+            resp.raise_for_status()
+            return resp.json().get("result", "")
 
 if __name__ == "__main__":
     import sys
