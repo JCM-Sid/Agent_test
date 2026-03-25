@@ -9,7 +9,7 @@ from tools.doctolib import call_doctolib_tool  # Importation de ta logique
 
 app = FastAPI()
 mcp_server = Server("remote-bridge")
-sse_transport = SseServerTransport("/messages")
+sse_transport = SseServerTransport("messages")
 
 
 # =================================================================
