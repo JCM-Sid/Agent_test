@@ -499,7 +499,7 @@ class MCPOrchestrator:
                 "mapping": {
                     "spec": lambda a: a.get("spec", "").lower().replace(" ", "-").encode("ascii", "ignore").decode(),
                     "location": lambda a: a.get("location", "").replace(" ", "+").lower().encode("ascii", "ignore").decode(),
-                    "limit": lambda a: a.get("limit", 5),
+                    "limit": lambda a: a.get("limit", 10),
                 },
             },
             "get_current_weather": {

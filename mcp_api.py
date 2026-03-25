@@ -114,7 +114,7 @@ async def list_tools():
                 "properties": {
                     "spec": {"type": "string", "description": "Spécialité ex: medecin-generaliste"},
                     "location": {"type": "string", "description": "Ville"},
-                    "limit": {"type": "integer", "default": 5},
+                    "limit": {"type": "integer", "default": 10},
                 },
                 "required": ["spec"],
             },
