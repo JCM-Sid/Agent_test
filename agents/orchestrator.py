@@ -93,10 +93,11 @@ class MCPOrchestrator:
         )
 
     async def chat_with_tools(self, user_query: str) -> str:
-        tools_meta = await self.list_all_tools()
-        tool_index = {t["name"]: t for t in tools_meta}
+        tools_meta = await self.get_all_tools()
+        #ool_index = {t["name"]: t for t in tools_meta}
+        tool_index = {t["tool"].name: t for t in tools_meta}
         messages = [
-            {"role": "system", "content": "Tu es un assistant météo. Utilise les outils disponibles pour répondre."},
+            {"role": "system", "content": "Tu es un assistant personnel. Utilise les outils disponibles pour répondre."},
             {"role": "user", "content": user_query},
         ]
 
@@ -150,8 +151,8 @@ async def main():
     script_path = os.path.join(os.path.dirname(__file__), "..", "mcp_local_server.py")
     await client.connect_local_server(sys.executable, [script_path])
     # Connection au serveur distant (FastAPI + outils météo/doctolib)
-    await client.connect_remote_server("https://ddcm-local.myftp.org/mcp/sse")
-
+    #await client.connect_remote_server("https://ddcm-local.myftp.org/mcp/sse")
+    await client.connect_remote_server("http://192.168.1.12:8123/sse")
     print("--- Orchestrateur MCP prêt (Ollama) ---")
     print("Posez une question (ex: 'Quel temps fait-il à Paris ?' ou 'Cherche des jobs Python à Lyon')")
 
