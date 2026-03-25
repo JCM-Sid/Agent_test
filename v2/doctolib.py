@@ -72,3 +72,19 @@ async def call_doctolib_tool(name: str, arguments: dict) -> list[types.TextConte
     return [types.TextContent(type="text", text=list_results)]
 
 
+async def list_doctolib_tools() -> list[types.Tool]:
+    return [
+        types.Tool(
+            name="doctolib_search",
+            description="Recherche un médecin disponible ,dans une ville données et pour une spécialité donnée.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "spec": {"type": "string", "description": "specialité du médecin, ex: medecin generaliste, dentiste, .."},
+                    "location": {"type": "string", "description": "Ville ou pays"},
+                    "limit": {"type": "integer", "default": 5},
+                },
+                "required": ["query"],
+            },
+        )
+    ]

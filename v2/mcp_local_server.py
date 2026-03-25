@@ -7,6 +7,7 @@ from mcp.server.stdio import stdio_server
 # Importation des fonctions de logique métier depuis votre dossier tools
 # Note : Assurez-vous d'avoir un fichier __init__.py vide dans le dossier tools/
 from mcp_tools import call_forecast_tool, call_searx_tool, list_forecast_tools, list_searx_tools
+from doctolib import list_doctolib_tools
 
 # Si vous voulez aussi des outils locaux spécifiques :
 # from tools.local_utils import ma_fonction_perso
@@ -26,6 +27,8 @@ async def list_tools() -> list[types.Tool]:
     # On récupère les outils de mcp_tools.py (Searx et Forecast)
     tools.extend(await list_searx_tools())
     tools.extend(await list_forecast_tools())
+    tools.extend(await list_doctolib_tools())
+    
 
     # Vous pouvez ajouter manuellement d'autres outils ici si besoin
     return tools

@@ -9,8 +9,10 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from openai import OpenAI
 
-from doctolib import call_doctolib_tool  # Importation de ta logique
+from doctolib import call_doctolib_tool, list_doctolib_tools  # Importation de ta logique
 from mcp_tools import call_forecast_tool, call_searx_tool, list_forecast_tools, list_searx_tools
+from meteo import list_weather_tools
+
 
 
 
@@ -44,10 +46,11 @@ class MCPOrchestrator:
 
     async def get_tools_definitions(self):
         """Récupère les définitions et les formate proprement pour Ollama/OpenAI"""
-        weather  = await list_weather_tools()
         forecast = await list_forecast_tools()
         searx    = await list_searx_tools()
         doctolib = await list_doctolib_tools()
+        weather = await list_weather_tools()
+        
 
         all_tools = weather + forecast + searx + doctolib
 
