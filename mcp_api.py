@@ -89,12 +89,14 @@ async def call_doctolib_tool(name: str, arguments: dict) -> list[types.TextConte
 async def search_doctolib(spec: str, location: str = "", limit: int = 10):
     result = await call_doctolib_tool("doctolib_search", {"spec": spec, "location": location, "limit": limit})
     return {"result": result[0].text}
+    # return [types.TextContent(type="text", text=resp.text)]
 
 
 @app.get("/api/weather")
 async def get_weather(city: str):
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"https://wttr.in/{city}?format=j1")
+        # return [types.TextContent(type="text", text=resp.text)]
         return resp.json()
 
 
