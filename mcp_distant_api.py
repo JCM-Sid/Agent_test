@@ -6,6 +6,7 @@ from mcp import types
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from tools.doctolib import call_doctolib_tool  # Importation de ta logique
+from fastapi.responses import Response # Ajoutez cet import en haut
 
 app = FastAPI()
 mcp_server = Server("remote-bridge")
@@ -14,20 +15,38 @@ sse_transport = SseServerTransport("messages")
 
 # =================================================================
 # MCP SSE (pour n8n)
-@app.get("/sse")
+sse_transport = SseServerTransport("/messages")
+
+# 2. Les fonctions de bridge (SANS décorateurs @app)
 async def handle_sse(request: Request):
-    async with sse_transport.connect_sse(request.scope, request.receive, request._send) as (read, write):
-        await mcp_server.run(read, write, mcp_server.create_initialization_options())
+    # Ici, on utilise _send (avec underscore) car c'est ce que Starlette 
+    # expose quand on passe par add_route
+    async with sse_transport.connect_sse(
+        request.scope, 
+        request.receive, 
+        request._send
+    ) as (read_stream, write_stream):
+        await mcp_server.run(
+            read_stream, 
+            write_stream, 
+            mcp_server.create_initialization_options()
+        )
 
 
-@app.post("/messages")
 async def handle_messages(request: Request):
-    await sse_transport.handle_post_message(request.scope, request.receive, request._send)
+    await sse_transport.handle_post_message(
+        request.scope, 
+        request.receive, 
+        request._send
+    )
+    return Response(status_code=202)
 
+# 3. Les routes (C'est cette méthode qui rend _send disponible correctement)
+app.add_route("/sse", handle_sse)
+app.add_route("/messages", handle_messages, methods=["POST"])
 
 # =================================================================
 # Liste des OUTILS distants
-
 
 @mcp_server.list_tools()
 async def list_tools():

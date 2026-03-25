@@ -13,6 +13,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client  # Import important pour le remote
 from mcp.client.stdio import stdio_client
 from openai import OpenAI
+import httpx 
 
 OLLAMA_MODEL = "minimax-m2.7:cloud"  # "qwen3.5:4b"
 # Interface OpenAI-compatible d'Ollama
@@ -46,14 +47,23 @@ class MCPOrchestrator:
 
     async def connect_remote_server(self, url: str):
         """Connexion au serveur FastAPI via SSE"""
-        # On stocke le contexte pour qu'il ne se ferme pas immédiatement
-        conn = sse_client(url)
-        read, write = await self.exit_stack.enter_async_context(conn)
-        session = await self.exit_stack.enter_async_context(ClientSession(read, write))
+        print(f"Tentative de connexion SSE sur : {url}")
+        
+        # Votre version de sse_client semble attendre (url) ou (client, url)
+        # On va utiliser la version la plus stable pour votre signature :
+        try:
+            # On laisse le sse_client gérer son propre client HTTP interne
+            # pour éviter les conflits de timeouts
+            read, write = await self.exit_stack.enter_async_context(sse_client(url))
+            
+            session = await self.exit_stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+            self.sessions.append(session)
+            print(f"✅ Serveur Remote connecté : {url}")
+        except Exception as e:
+            print(f"❌ Erreur de connexion : {e}")
+            raise
 
-        await session.initialize()
-        self.sessions.append(session)
-        print(f"✅ Serveur Remote connecté : {url}")
 
     async def get_all_tools(self):
         """Récupère les outils de TOUS les serveurs connectés"""
@@ -117,25 +127,23 @@ class MCPOrchestrator:
             for tc in msg.tool_calls:
                 full_name = tc.function.name
                 args = json.loads(tc.function.arguments or "{}")
-                meta = tool_index.get(full_name)
-
-                if not meta:
-                    print(f"[WARN] Tool inconnu: {full_name}")
-                    continue
-
+                
+                # Correction de l'appel ici :
                 print(f"\n-> Tool call : {full_name}({json.dumps(args, ensure_ascii=False)})")
-                result_text = await self.call_tool(meta["server"], meta["tool_name"], args)
-                print(f"<- Résultat  : {result_text[:200]}{'...' if len(result_text) > 200 else ''}")
+                result = await self.call_tool(full_name, args) # Appel avec 2 arguments
+                
+                # Extraire le texte du résultat (result est souvent une liste de TextContent)
+                result_text = result[0].text if result and len(result) > 0 else "Pas de résultat"
+                
+                print(f"<- Résultat  : {result_text[:200]}...")
 
-                # Format OpenAI : tool_call_id requis
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": result_text,
-                    }
-                )
-
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result_text,
+                })
+                
+    
     async def close(self):
         await self.exit_stack.aclose()
 
