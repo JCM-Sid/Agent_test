@@ -34,14 +34,13 @@ async def search_doctolib(spec: str, location: str = "", limit: int = 10):
 async def get_weather(city: str):
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"https://wttr.in/{city}?format=j1")
-        # return [types.TextContent(type="text", text=resp.text)]
         return resp.json()
 
 @app.get("/api/rag_notes")
 async def search_notes(query: str, k: int = 3):
     # This is a placeholder for the actual RAG implementation
-    result = await call_ragnotes_tool("rag_notes_search", {"query": query, "k": k})
-    return {"result": f"Résultats pour la requête: {query}"}
+    result = await call_rag_notes_tool("rag_notes_search", {"query": query, "k": k})
+    return {"result": result[0].text}
 
 
 # =================================================================

@@ -142,8 +142,7 @@ def query_custom_db(client, query, db_path, k=3):
         score = similarities[idx]
         source = db["metadatas"][idx].get("source", "Inconnu")
         content = db["texts"][idx]
-        print(f"Score: {score:.4f} | Source: {source} \nContent: {content[:200]}...\n")
-        text_results += f"Source: {source} | Score: {score:.4f}\n{content}\n---\n"
+        text_results += f"Source: {source} Score: {score:.4f}\n{content}\n\n"
     
     return text_results
 
@@ -153,9 +152,12 @@ async def call_rag_notes_tool(name: str, arguments: dict) -> list[types.TextCont
         raise ValueError(f"Unknown tool: {name}")
 
     params = {"query": arguments["query"], "nb_k": arguments.get("k", ""), "refresh_db": arguments.get("refresh_db", False)}
-    all_segments= create_doc_segments()
-    create_and_save_db(all_segments, path_embedding_db)
-    list_results = query_custom_db(client, "Quels sont mes projets en cours ?", db_path=path_embedding_db, k=3)
+    if params["refresh_db"]:
+        pass
+    else:
+        all_segments= create_doc_segments()
+        create_and_save_db(all_segments, path_embedding_db)
+        list_results = query_custom_db(client, params["query"], db_path=path_embedding_db, k=params["nb_k"])
     
     return [types.TextContent(type="text", text=list_results)]
 

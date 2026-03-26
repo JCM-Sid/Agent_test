@@ -8,6 +8,7 @@ from mcp import types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from openai import OpenAI
+from pydantic import tools
 
 
 from mcp_tools import call_forecast_tool, call_searx_tool, list_forecast_tools, list_searx_tools
@@ -16,12 +17,21 @@ from doctolib import list_doctolib_tools
 from rag_notes import list_rag_notes_tool
 
 ## CONFIGURATION LLM 
-OLLAMA_MODEL = "minimax-m2.7:cloud"  # "qwen3.5:4b"
+#OLLAMA_MODEL = "minimax-m2.7:cloud"  
+OLLAMA_MODEL = "qwen3.5:4b"
+#OLLAMA_MODEL = "qwen3.5:2b"
+#OLLAMA_MODEL = "ministral-3:3b"
+
 # Interface OpenAI-compatible d'Ollama
 ollama_client = OpenAI(
     api_key="ollama",
     base_url="http://localhost:11434/v1",
 )
+#from openai import AsyncOpenAI
+#ollama_client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+
+# Et dans votre fonction :
+
 
 # --- CONFIGURATION COMMUNE ---
 TIMEOUT = 15.0
@@ -34,7 +44,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (MCP Agent)"}
 
 
 class MCPOrchestrator:
-    def __init__(self, model="minimax-m2.7:cloud"):  # Note: qwen3.5 n'existe pas encore, restez sur 2.5
+    def __init__(self, model=OLLAMA_MODEL):  # Note: qwen3.5 n'existe pas encore, restez sur 2.5
         self.model = model
         # Mapping direct pour simplifier l'exécution
         self.tools_map = {
@@ -50,8 +60,6 @@ class MCPOrchestrator:
         weather = await list_weather_tools()
         ragnote = await list_rag_notes_tool()
 
-        
-
         all_tools = weather + forecast + searx + doctolib + ragnote
 
         # On retourne le format standard attendu par l'API Chat Completions
@@ -60,12 +68,8 @@ class MCPOrchestrator:
     def ollama_chat(self, messages: list[dict], tools: list[dict]):
         """Appelle Ollama (assurez-vous que ollama_client est défini au préalable)"""
         # Plus besoin de re-boucler ici, 'tools' est déjà au bon format
-        return ollama_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            tools=tools,
-            temperature=0.3,
-        )
+        return ollama_client.chat.completions.create( model=self.model,  messages=messages,  tools=tools, temperature=0.2   )
+       
 
     async def chat_with_tools(self, user_query: str):
         tools_meta = await self.get_tools_definitions()
@@ -140,7 +144,7 @@ class MCPOrchestrator:
             "rag_notes_search": {
                 "url": "https://ddcm-local.myftp.org/mcp/api/rag_notes",
                 "mapping": {
-                    "query": lambda a: a.get("query", ""),
+                    "query": lambda a: a.get("query", "").lower().encode("utf-8", "ignore").decode(),
                     "k": lambda a: a.get("k", 3),
                     "refresh_db": lambda a: a.get("refresh_db", False),
                 },
@@ -162,11 +166,20 @@ class MCPOrchestrator:
 
 async def main():
     orchestrator = MCPOrchestrator(model=OLLAMA_MODEL)
-    print("--- Orchestrateur MCP prêt (Ollama) ---")
-    print("Posez une question (ex: 'Quel temps fait-il à Paris ?' ou 'Cherche des jobs Python à Lyon')")
+    print(f"--- Orchestrateur MCP prêt (Ollama: {OLLAMA_MODEL}) ---")
+    print("Posez une question (ex: 'Quel temps fait-il à Paris ?' ou 'Quel dentiste est dispo à Versailles')")
+
+    #affche la liste ds outils
+    print("Outils disponibles localement:")
+    for tool in orchestrator.tools_map:
+        print(f" - {tool}")
+    #les outils distants
+    print("Outils disponibles via API :\n - doctolib_search\n - get_current_weather\n - rag_notes_search")
 
     while True:
         query = input("\n> ")
+        if len(query.strip()) == 0:
+            continue
         if query.lower() in ["exit", "quit"]:
             break
         await orchestrator.chat_with_tools(query)
