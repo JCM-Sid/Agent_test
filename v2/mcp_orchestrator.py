@@ -16,6 +16,8 @@ from meteo import list_weather_tools
 from doctolib import list_doctolib_tools
 from rag_notes import list_rag_notes_tool
 
+import unicodedata
+
 ## CONFIGURATION LLM 
 #OLLAMA_MODEL = "minimax-m2.7:cloud"  
 OLLAMA_MODEL = "qwen3.5:4b"
@@ -42,6 +44,13 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (MCP Agent)"}
 # ORCHESTRATEUR MCP (Ollama)
 # =================================================================
 
+
+def clean_text(text):
+    if not text:
+        return ""
+    return str(unicodedata.normalize('NFD', text)
+               .encode('ascii', 'ignore')
+               .decode('utf-8'))
 
 class MCPOrchestrator:
     def __init__(self, model=OLLAMA_MODEL):  # Note: qwen3.5 n'existe pas encore, restez sur 2.5
@@ -130,21 +139,21 @@ class MCPOrchestrator:
             "doctolib_search": {
                 "url": "https://ddcm-local.myftp.org/mcp/api/doctolib",
                 "mapping": {
-                    "spec": lambda a: a.get("spec", "").lower().replace(" ", "-").encode("ascii", "ignore").decode(),
-                    "location": lambda a: a.get("location", "").replace(" ", "+").lower().encode("ascii", "ignore").decode(),
+                    "spec": lambda a: clean_text(a.get("spec", "")).lower().replace(" ", "-"),
+                    "location": lambda a: clean_text(a.get("location", "")).replace(" ", "+").lower(),
                     "limit": lambda a: a.get("limit", 10),
                 },
             },
             "get_current_weather": {
                 "url": "https://ddcm-local.myftp.org/mcp/api/weather",
                 "mapping": {
-                    "city": lambda a: a.get("city", "").lower().replace(" ", "+").encode("ascii", "ignore").decode(),
+                    "city": lambda a: clean_text(a.get("city", "")).lower().replace(" ", "+"),
                 },
             },
             "rag_notes_search": {
                 "url": "https://ddcm-local.myftp.org/mcp/api/rag_notes",
                 "mapping": {
-                    "query": lambda a: a.get("query", "").lower().encode("utf-8", "ignore").decode(),
+                    "query": lambda a: clean_text(a.get("query", "")).lower(),
                     "k": lambda a: a.get("k", 3),
                     "refresh_db": lambda a: a.get("refresh_db", False),
                 },
