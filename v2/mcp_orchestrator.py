@@ -9,13 +9,11 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from openai import OpenAI
 
-from doctolib import call_doctolib_tool, list_doctolib_tools  # Importation de ta logique
+
 from mcp_tools import call_forecast_tool, call_searx_tool, list_forecast_tools, list_searx_tools
 from meteo import list_weather_tools
-
-
-
-
+from doctolib import list_doctolib_tools
+from rag_notes import list_rag_notes_tool
 
 ## CONFIGURATION LLM 
 OLLAMA_MODEL = "minimax-m2.7:cloud"  # "qwen3.5:4b"
@@ -50,9 +48,11 @@ class MCPOrchestrator:
         searx    = await list_searx_tools()
         doctolib = await list_doctolib_tools()
         weather = await list_weather_tools()
+        ragnote = await list_rag_notes_tool()
+
         
 
-        all_tools = weather + forecast + searx + doctolib
+        all_tools = weather + forecast + searx + doctolib + ragnote
 
         # On retourne le format standard attendu par l'API Chat Completions
         return [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.inputSchema}} for t in all_tools]
@@ -98,7 +98,7 @@ class MCPOrchestrator:
 
                 print(f" -> [Appel Outil]: {func_name}({args})")
 
-                remote_tools = ["doctolib_search", "get_current_weather"]  # Liste des outils à appeler via HTTP
+                remote_tools = ["doctolib_search", "get_current_weather", "rag_notes_search"]  # Liste des outils à appeler via HTTP
                 if func_name in remote_tools:
                     result_text = await self.call_remote_tool(func_name, args)
                 elif func_name in self.tools_map:  # Liste des outils definis localement au script
@@ -135,6 +135,14 @@ class MCPOrchestrator:
                 "url": "https://ddcm-local.myftp.org/mcp/api/weather",
                 "mapping": {
                     "city": lambda a: a.get("city", "").lower().replace(" ", "+").encode("ascii", "ignore").decode(),
+                },
+            },
+            "rag_notes_search": {
+                "url": "https://ddcm-local.myftp.org/mcp/api/rag_notes",
+                "mapping": {
+                    "query": lambda a: a.get("query", ""),
+                    "k": lambda a: a.get("k", 3),
+                    "refresh_db": lambda a: a.get("refresh_db", False),
                 },
             },
         }

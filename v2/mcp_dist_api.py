@@ -11,6 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 from doctolib import call_doctolib_tool  # Importation de ta logique
+from rag_notes import call_rag_notes_tool # Importation de ta logique
 
 # =================================================================
 # CONFIG
@@ -27,7 +28,6 @@ app = FastAPI()
 async def search_doctolib(spec: str, location: str = "", limit: int = 10):
     result = await call_doctolib_tool("doctolib_search", {"spec": spec, "location": location, "limit": limit})
     return {"result": result[0].text}
-    # return [types.TextContent(type="text", text=resp.text)]
 
 
 @app.get("/api/weather")
@@ -36,6 +36,12 @@ async def get_weather(city: str):
         resp = await client.get(f"https://wttr.in/{city}?format=j1")
         # return [types.TextContent(type="text", text=resp.text)]
         return resp.json()
+
+@app.get("/api/rag_notes")
+async def search_notes(query: str, k: int = 3):
+    # This is a placeholder for the actual RAG implementation
+    result = await call_ragnotes_tool("rag_notes_search", {"query": query, "k": k})
+    return {"result": f"Résultats pour la requête: {query}"}
 
 
 # =================================================================
@@ -66,6 +72,19 @@ async def list_tools():
                 "required": ["city"],
             },
         ),
+        types.Tool(
+            name="rag_notes_search",
+            description="Recherche d'informations dans mes notes personnelles",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "k": {"type": "string"},
+                    "refresh_db": {"type": "boolean"},
+                    },
+                "required": ["query"],
+            },
+        ),
     ]
 
 
@@ -77,6 +96,9 @@ async def call_tool(name: str, arguments: dict):
             return [types.TextContent(type="text", text=resp.text)]
     if name == "doctolib_search":
         return await call_doctolib_tool(name, arguments)
+    if name == "rag_notes_search":
+        return await call_rag_notes_tool(name, arguments)
+
     raise ValueError(f"Outil non trouvé : {name}")
 
 
