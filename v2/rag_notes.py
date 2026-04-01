@@ -44,7 +44,7 @@ def create_doc_segments():
             continue
             
         print(f"Traitement de: {os.path.basename(path)}")
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='latin-1') as f:
             doc = f.read()
 
             # --- 2. Découpage intelligent ---
