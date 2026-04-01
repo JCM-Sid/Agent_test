@@ -1,5 +1,7 @@
 # RAG sur plusieurs fichiers (Notes)
+from importlib.resources import path
 import os
+from anyio import Path
 from mcp import types
 from mistralai.client import Mistral
 from langchain_core.documents import Document
@@ -18,10 +20,14 @@ client = Mistral(api_key=MISTRAL_API_KEY)
 path_embedding_db = os.path.join(nextcloud_dir, "Data", "Notes_embedding_db.pkl")
 
 def list_files_in_directory(directory):
+    ALLOWED_EXTENSIONS = {'.txt', '.md', '.csv'}  # adapte selon tes besoins
     print(f"Contenu du répertoire {directory} :")
     list_paths = []
     for root, dirs, files in os.walk(directory):
         for file in files:
+            if Path(file).suffix.lower() not in ALLOWED_EXTENSIONS:
+                print(f"Fichier skipped (extension non autorisée) : {file}")
+                continue  # skip binaires
             print(os.path.join(root, file))
             list_paths.append(os.path.join(root, file))
     if not list_paths:
@@ -36,13 +42,13 @@ def create_doc_segments():
     overlap_size = 40
     all_documents = []
 
-
     # --- 1. Boucle de traitement des fichiers ---
     for path in files:
+        #print(type(path), repr(path[:20]))  # avant le Path()
         if not os.path.exists(path):
             print(f"Fichier introuvable : {path}")
             continue
-            
+
         print(f"Traitement de: {os.path.basename(path)}")
         with open(path, 'r', encoding='latin-1') as f:
             doc = f.read()
